@@ -33,7 +33,7 @@ dependencies:
   cupertino_icons: ^1.0.2
   http: ^1.1.2
   shared_preferences: ^2.2.2
-  unique_identifier: ^0.3.0
+  device_info_plus: ^9.1.1
 
 dev_dependencies:
   flutter_test:

@@ -1,11 +1,10 @@
-import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:poc_mobile_app/components/my_text_field.dart';
 import 'package:poc_mobile_app/constants.dart';
 import 'package:http/http.dart' as http;
 // import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/services.dart';
-import 'package:unique_identifier/unique_identifier.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 class RegisterPage extends StatefulWidget {
   final void Function()? onTap;
@@ -20,8 +19,6 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  String _identifier = 'Unknown';
-
   //text editing controllers
   final emailController = TextEditingController();
   final userNameController = TextEditingController();
@@ -31,22 +28,18 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void dispose() {
     super.dispose();
-    initUniqueIdentifierState();
   }
 
-  Future<void> initUniqueIdentifierState() async {
-    String identifier;
-    try {
-      identifier = (await UniqueIdentifier.serial)!;
-    } on PlatformException {
-      identifier = 'Failed to get Unique Identifier';
+  Future<String?> _getId() async {
+    var deviceInfo = DeviceInfoPlugin();
+    if (Platform.isIOS) {
+      // import 'dart:io'
+      var iosDeviceInfo = await deviceInfo.iosInfo;
+      return iosDeviceInfo.identifierForVendor; // unique ID on iOS
+    } else if (Platform.isAndroid) {
+      var androidDeviceInfo = await deviceInfo.androidInfo;
+      return androidDeviceInfo.id; // unique ID on Android
     }
-
-    if (!mounted) return;
-
-    setState(() {
-      _identifier = identifier;
-    });
   }
 
   void _showSnackbar(String message) {
@@ -56,16 +49,17 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> submitData() async {
+    String? deviceId = await _getId();
     final body = {
       "username": userNameController.text,
       "password": passwordController.text,
       "phoneNumber": phoneNumberController.text,
       "email": emailController.text,
-      "device_id": _identifier,
+      "device_id": deviceId,
     };
 
     debugPrint('Body : $body');
-    debugPrint('Device ID is : $_identifier');
+    debugPrint('Device ID is : $deviceId');
 
     // try {
     //   const url = '$baseUrl/Register';
