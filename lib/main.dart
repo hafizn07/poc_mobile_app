@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:poc_mobile_app/screens/auth/login_or_register_page.dart';
-import 'package:poc_mobile_app/screens/auth/verify_otp_page.dart';
 import 'package:poc_mobile_app/screens/home_page.dart';
 // import 'package:shared_preferences/shared_preferences.dart';
 
@@ -44,7 +43,6 @@ class _MyAppState extends State<MyApp> {
       home: const LoginOrRegisterPage(),
       routes: {
         '/home_page': (context) => const HomePage(),
-        '/otp_verify_page': (context) => const VerifyOtpPage(),
       },
     );
   }

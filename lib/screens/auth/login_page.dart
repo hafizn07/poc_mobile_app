@@ -1,5 +1,6 @@
 import 'dart:convert';
-
+import 'dart:io' show Platform;
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:poc_mobile_app/components/my_text_field.dart';
 import 'package:poc_mobile_app/constants.dart';
@@ -19,13 +20,12 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  //text editing controllers
-  final emailController = TextEditingController();
+  final userNameController = TextEditingController();
   final passwordController = TextEditingController();
 
   @override
   void dispose() {
-    emailController.dispose();
+    userNameController.dispose();
     passwordController.dispose();
     super.dispose();
   }
@@ -36,16 +36,94 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Future<void> handleLogin() async {
+  Future<void> _initializeLogin(String username) async {
+    try {
+      const url = '$baseUrl/logininitialise';
+      final uri = Uri.parse(url);
+      final response = await http.post(
+        uri,
+        headers: {
+          "accept": "*/*",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({"username": username}),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseBody = jsonDecode(response.body);
+
+        // Check if "didindex" key exists in the response
+        if (responseBody.containsKey("didindex")) {
+          final List<int> randomIndexes =
+              (responseBody["didindex"] as List<dynamic>).cast<int>();
+
+          _checkDeviceIdAndLogin(username, randomIndexes);
+        } else {
+          _showSnackbar("Invalid response format: 'didindex' key not found.");
+        }
+      } else {
+        _showSnackbar(response.body);
+      }
+    } catch (e) {
+      _showSnackbar(e.toString());
+    }
+  }
+
+  Future<String?> _getDeviceId() async {
+    var deviceInfo = DeviceInfoPlugin();
+    if (Platform.isIOS) {
+      var iosDeviceInfo = await deviceInfo.iosInfo;
+      return iosDeviceInfo.identifierForVendor;
+    } else if (Platform.isAndroid) {
+      var androidDeviceInfo = await deviceInfo.androidInfo;
+      return androidDeviceInfo.id;
+    }
+    return null;
+  }
+
+  Future<void> _checkDeviceIdAndLogin(
+      String username, List<int> randomIndexes) async {
+    final String? deviceId = await _getDeviceId();
+    debugPrint('randomIndex inside _checkDeviceIdAndLogin  = $randomIndexes');
+
+    if (deviceId != null) {
+      final int deviceIndex = deviceId.hashCode % 5;
+
+      if (randomIndexes.contains(deviceIndex)) {
+        // Apply random index generation and masking here
+        List<String> maskedValues = [];
+        for (int i = 0; i < 5; i++) {
+          maskedValues.add(_maskValue(deviceId[i], randomIndexes[i]));
+        }
+
+        // Modify the _userLogin method to pass the masked values
+        _userLogin(username, maskedValues);
+      } else {
+        _showSnackbar(
+            "Device ID mismatch. Please login from the registered device.");
+      }
+    } else {
+      _showSnackbar("Failed to retrieve device ID. Please try again.");
+    }
+  }
+
+  String _maskValue(String value, int randomIndex) {
+    // Mask the value with 'X' characters based on the random index
+    String maskPart = 'X' * randomIndex;
+    return maskPart + value.substring(randomIndex);
+  }
+
+  Future<void> _userLogin(String username, List<String> maskedValues) async {
     final body = {
-      "username": emailController.text,
+      "username": username,
       "password": passwordController.text,
+      "email": null,
+      "deviceId": maskedValues,
     };
 
     try {
-      const url = '$baseUrl/SignIn';
+      const url = '$baseUrl/userlogin';
       final uri = Uri.parse(url);
-
       final response = await http.post(
         uri,
         headers: {
@@ -57,7 +135,7 @@ class _LoginPageState extends State<LoginPage> {
 
       if (response.statusCode == 200) {
         saveLoginStatus();
-        Navigator.pushNamed(context, '/otp_verify_page');
+        Navigator.pushNamed(context, '/home_page');
       } else {
         _showSnackbar(response.body);
       }
@@ -82,32 +160,26 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const SizedBox(height: 25.0),
-                //logo
                 const Icon(
                   Icons.lock,
                   size: 70,
                 ),
-
                 const SizedBox(height: 25.0),
-                //welcome text
                 Text(
-                  "Welcome back! you've been missed!",
+                  "Welcome back! You've been missed!",
                   style: TextStyle(
                     color: Colors.grey.shade700,
                     fontSize: 16,
                   ),
                 ),
-
                 const SizedBox(height: 25.0),
-                //TextFields
                 MyTextField(
-                  controller: emailController,
+                  controller: userNameController,
                   hintText: "Username",
                   obscureText: false,
                   keyboardType: TextInputType.text,
                   icon: Icons.account_circle_outlined,
                 ),
-
                 const SizedBox(height: 10.0),
                 MyTextField(
                   controller: passwordController,
@@ -116,9 +188,7 @@ class _LoginPageState extends State<LoginPage> {
                   keyboardType: TextInputType.text,
                   icon: Icons.lock_outline,
                 ),
-
                 const SizedBox(height: 10),
-                //forgot password
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
                   child: Row(
@@ -135,11 +205,9 @@ class _LoginPageState extends State<LoginPage> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 25.0),
-                //signIn button
                 GestureDetector(
-                  onTap: handleLogin,
+                  onTap: () => _initializeLogin(userNameController.text),
                   child: Container(
                     padding: const EdgeInsets.all(22),
                     margin: const EdgeInsets.symmetric(horizontal: 25),
@@ -159,9 +227,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 50),
-                //not a member? register now
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
